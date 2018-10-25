@@ -12,16 +12,21 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type SimulatedEthereumEnvironment struct {
-	SingnetPrivateKey       *ecdsa.PrivateKey
-	SingnetWallet           *bind.TransactOpts
-	ClientWallet            *bind.TransactOpts
-	ClientPrivateKey        *ecdsa.PrivateKey
-	ServerWallet            *bind.TransactOpts
-	ServerPrivateKey        *ecdsa.PrivateKey
-	Backend                 *backends.SimulatedBackend
+	EthServer *rpc.Server
+	EthClient *rpc.Client
+	Backend   *backends.SimulatedBackend
+
+	SingnetPrivateKey *ecdsa.PrivateKey
+	SingnetWallet     *bind.TransactOpts
+	ClientWallet      *bind.TransactOpts
+	ClientPrivateKey  *ecdsa.PrivateKey
+	ServerWallet      *bind.TransactOpts
+	ServerPrivateKey  *ecdsa.PrivateKey
+
 	SingularityNetToken     *SingularityNetToken
 	MultiPartyEscrowAddress common.Address
 	MultiPartyEscrow        *MultiPartyEscrow
@@ -78,7 +83,20 @@ func GetSimulatedEthereumEnvironment() (env SimulatedEthereumEnvironment) {
 	env.Backend = backends.NewSimulatedBackend(alloc)
 	deployContracts(&env)
 
+	env.EthServer = getEthServer()
+	env.EthClient = rpc.DialInProc(env.EthServer)
+
 	return
+}
+
+func (env *SimulatedEthereumEnvironment) Close() {
+	defer env.EthClient.Close()
+	defer env.EthServer.Stop()
+}
+
+func getEthServer() *rpc.Server {
+	server := rpc.NewServer()
+	return server
 }
 
 func getTestWallet() (privateKey *ecdsa.PrivateKey, wallet *bind.TransactOpts) {
