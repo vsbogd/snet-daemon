@@ -136,6 +136,48 @@ func (h *escrowPaymentHandler) Validate(_payment handler.Payment) (err *status.S
 	var payment = _payment.(*escrowPaymentType)
 	var log = log.WithField("payment", payment)
 
+	channel, err := h.getChannelFromStorage(payment)
+	if err == nil {
+		return
+	}
+
+	err = h.validateChannelState(channel, payment)
+	if err != nil {
+		return
+	}
+
+	channel, err = h.getChannelFromBlockchain(payment)
+	if err != nil {
+		return
+	}
+
+	return h.validateChannelState(channel, payment)
+}
+
+func (h *escrowPaymentHandler) getChannelFromStorage(payment *escrowPaymentType) (channel *PaymentChannelData, err *status.Status) {
+	channel, ok, e := h.storage.Get(payment.channelKey)
+	if e != nil {
+		return nil, status.Newf(codes.Internal, "payment channel storage error")
+	}
+	if !ok {
+		log.Warn("Payment channel not found")
+		return nil, status.Newf(codes.InvalidArgument, "payment channel \"%v\" not found", channelKey)
+	}
+	return channel, nil
+}
+
+func (h *escrowPaymentHandler) getChannelFromBlockchain(payment *escrowPaymentType) (channel *PaymentChannelData, err *status.Status) {
+	return nil, nil
+}
+
+func (h *escrowPaymentHandler) validateChannelState(channel *PaymentChannelData, payment *escrowPaymentType) (err *status.Status) {
+	return nil
+}
+
+func (h *escrowPaymentHandler) Validate(_payment handler.Payment) (err *status.Status) {
+	var payment = _payment.(*escrowPaymentType)
+	var log = log.WithField("payment", payment)
+
 	if payment.channelNonce.Cmp(payment.channel.Nonce) != 0 {
 		log.Warn("Incorrect nonce is sent by client")
 		return status.Newf(codes.Unauthenticated, "incorrect payment channel nonce, latest: %v, sent: %v", payment.channel.Nonce, payment.channelNonce)
